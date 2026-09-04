@@ -83,24 +83,23 @@ procedimento completo e reproduzível em [`docs/validacao-aws.md`](docs/validaca
 
 ## Limitações Conhecidas
 
-Cada uma é resolvida em um projeto seguinte da trilha.
+Explicitadas de propósito: cada uma é resolvida em um projeto seguinte da trilha.
 
-- **Instância única, sem alta disponibilidade.** 
-
-    Uma AZ, um host.  
-    A janela de indisponibilidade durante o `docker rm`/`docker run` é real.  
-    Resolvido no projeto 2 com ECS e deploy sem downtime. 
-
-- **Access keys de longa duração nos secrets do GitHub.**   
-
-  O correto é OIDC com role assumível, sem credencial estática.   
-  O `permissions: id-token: write` já está declarado no workflow para essa migração.
-
-- **Sem HTTPS.**  
-  A aplicação responde em HTTP na porta 8000. ALB com certificado ACM entra no projeto 2.
-
-- **Estado do Terraform local.**  
-  Não suporta trabalho colaborativo nem trava execuções concorrentes.
+- **Instância única, sem alta disponibilidade.** Uma AZ, um host. A janela de
+  indisponibilidade durante o `docker rm`/`docker run` é real. Resolvido no
+  projeto 2 com ECS e deploy sem downtime.
+- **Access keys de longa duração nos secrets do GitHub.** O correto é OIDC com
+  role assumível, sem credencial estática. O `permissions: id-token: write` já
+  está declarado no workflow para essa migração.
+- **Sem HTTPS.** A aplicação responde em HTTP na porta 8000. ALB com
+  certificado ACM entra no projeto 2.
+- **Estado do Terraform local.** Não suporta trabalho colaborativo nem trava
+  execuções concorrentes.
+- **Sem policy mínima para o operador.** A do pipeline é mínima e está no repo;
+  a do operador não. Uma policy least-privilege que cubra o ciclo completo de
+  `apply` e `destroy` desta stack é grande e frágil a mudanças — o caminho certo
+  é gerá-la a partir do plano, e isso entra no projeto 5 junto com a separação
+  por conta.
 
 ## Estrutura
 
@@ -110,8 +109,53 @@ Cada uma é resolvida em um projeto seguinte da trilha.
 ├── terraform/              # VPC, subnet, SG, IAM, EC2, CloudWatch
 ├── .github/workflows/      # pipeline CI/CD
 └── docs/                   # diagrama e procedimento de validação na AWS
-└── README.md               # Documentação do projeto
 ```
+
+## Pré-requisitos
+
+O projeto envolve **três identidades distintas na AWS**. Confundi-las é o erro
+mais comum ao reproduzir um projeto como este.
+
+| Identidade | Quem é | Como é criada |
+|---|---|---|
+| **Operador** | Quem roda `terraform apply` da sua máquina | Usuário IAM que você já tem, com acesso a EC2, VPC, IAM, CloudWatch Logs e SSM |
+| **Pipeline** | O `AWS_ACCESS_KEY_ID` nos secrets do GitHub | Usuário IAM dedicado — policy mínima em [`docs/iam-pipeline-policy.json`](docs/iam-pipeline-policy.json) |
+| **Instância** | A EC2, para falar com SSM e CloudWatch | Criada pelo Terraform (`terraform/iam.tf`), você não faz nada |
+
+### Operador
+
+Precisa poder criar e destruir: VPC, subnet, internet gateway, route table,
+security group, EC2, IAM role/policy attachment/instance profile, CloudWatch log
+group e alarmes. Em conta de estudo, `PowerUserAccess` + `IAMFullAccess`
+resolvem. Ver *Limitações Conhecidas* sobre por que não há uma policy mínima
+para este papel.
+
+Confirme qual identidade está ativa antes de começar:
+
+```bash
+aws sts get-caller-identity
+```
+
+### Pipeline
+
+Usuário dedicado, com permissão apenas para disparar o `AWS-RunShellScript` em
+instâncias com a tag `Project=devops-01-ec2-cicd` e ler o resultado — nada além
+disso. Ele **não** pode criar, parar ou destruir infraestrutura.
+
+```bash
+aws iam create-user --user-name devops-01-ec2-cicd-pipeline
+
+aws iam put-user-policy \
+  --user-name devops-01-ec2-cicd-pipeline \
+  --policy-name deploy-via-ssm \
+  --policy-document file://docs/iam-pipeline-policy.json
+
+aws iam create-access-key --user-name devops-01-ec2-cicd-pipeline
+```
+
+Use a chave retornada nos secrets `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`.
+A saída do último comando contém a secret access key em texto plano e ela não
+pode ser recuperada depois — registre-a no secret e descarte.
 
 ## Como executar
 
