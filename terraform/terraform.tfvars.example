@@ -1,0 +1,6 @@
+aws_region = "us-east-1"
+
+# Descomente APENAS se precisar de SSH para depuração.
+# Com os defaults, o acesso é feito via SSM Session Manager (sem porta 22 aberta).
+# ssh_allowed_cidr = "SEU.IP.PUBLICO/32"
+# key_pair_name    = "seu-key-pair-existente"
