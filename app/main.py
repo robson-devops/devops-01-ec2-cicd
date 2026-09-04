@@ -1,8 +1,7 @@
 """
 API REST mínima para o Projeto 1 do portfólio DevOps.
 
-Propósito: dar suporte à infraestrutura (o foco do projeto é o deploy,
-não a aplicação). Endpoints:
+Endpoints:
   GET  /health          -> health check para o CloudWatch / load balancer
   GET  /tasks           -> lista tarefas
   POST /tasks           -> cria tarefa

@@ -7,8 +7,6 @@ resource "aws_cloudwatch_log_group" "app" {
   }
 }
 
-# Alarme de saúde da instância: dispara se o status check da EC2 falhar
-# (problema de hardware/host ou do sistema operacional).
 resource "aws_cloudwatch_metric_alarm" "status_check_failed" {
   alarm_name          = "${var.project_name}-status-check-failed"
   alarm_description   = "Status check da instancia EC2 falhou"
@@ -30,8 +28,6 @@ resource "aws_cloudwatch_metric_alarm" "status_check_failed" {
   }
 }
 
-# Alarme de CPU: sinaliza saturação sustentada, base para a discussão de
-# escalabilidade que motiva a migração para ECS no projeto 2.
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   alarm_name          = "${var.project_name}-cpu-high"
   alarm_description   = "CPU acima de 80% por 10 minutos"
