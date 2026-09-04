@@ -87,13 +87,17 @@ jobs:
         id: send
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ steps.img.outputs.name }}:${{ github.sha }}"
+          LOGS="--log-driver=awslogs"
+          LOGS="$LOGS --log-opt awslogs-region=${{ secrets.AWS_REGION }}"
+          LOGS="$LOGS --log-opt awslogs-group=/devops-01-ec2-cicd/app"
+          LOGS="$LOGS --log-opt awslogs-stream=app"
           CMD_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name AWS-RunShellScript \
             --parameters commands="[
               \"docker pull $IMAGE\",
               \"docker rm -f app || true\",
-              \"docker run -d --name app --restart unless-stopped -p 8000:8000 $IMAGE\"
+              \"docker run -d --name app --restart unless-stopped -p 8000:8000 $LOGS $IMAGE\"
             ]" \
             --query "Command.CommandId" --output text)
           echo "cmd_id=$CMD_ID" >> "$GITHUB_OUTPUT"
