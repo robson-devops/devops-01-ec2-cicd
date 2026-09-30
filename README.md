@@ -1,3 +1,5 @@
+![Arquitetura](docs/img/arquitetura.png)
+
 # devops-01-ec2-cicd
 
 Deploy automatizado de uma aplicação containerizada em EC2, com infraestrutura
